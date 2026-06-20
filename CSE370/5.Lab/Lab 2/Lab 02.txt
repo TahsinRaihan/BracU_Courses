@@ -1,0 +1,106 @@
+mysql -u root -p
+
+CREATE DATABASE Company_22201344;
+
+USE Company_22201344;
+
+CREATE TABLE Employee (
+    employee_id CHAR(10),
+    first_name VARCHAR(20),
+    last_name VARCHAR(20),
+    email VARCHAR(60),
+    phone_number CHAR(14),
+    hire_date DATE,
+    job_id CHAR(10),
+    salary INT,
+    commission_pct DECIMAL(5,3),
+    manager_id CHAR(10),
+    department_id CHAR(10)
+);
+
+
+INSERT INTO Employee (employee_id, first_name, last_name, email, phone_number, hire_date, job_id, salary, commission_pct, manager_id, department_id)
+VALUES 
+('EMP001', 'Virat', 'Kohli', 'virat.kohli@email.com', '12345678901234', '2010-08-18', 'JOB001', 50000, 0.07, 'MNG001', 'DPT001'),
+('EMP002', 'MS', 'Dhoni', 'ms.dhoni@email.com', '12345678901235', '2004-12-23', 'JOB002', 60000, 0.06, 'MNG001', 'DPT002'),
+('EMP003', 'Sachin', 'Tendulkar', 'sachin.t@email.com', '12345678901236', '1989-11-15', 'JOB003', 70000, 0.08, 'MNG002', 'DPT003'),
+('EMP004', 'Rohit', 'Sharma', 'rohit.sharma@email.com', '12345678901237', '2007-06-23', 'JOB004', 55000, 0.05, 'MNG002', 'DPT004'),
+('EMP005', 'Babar', 'Azam', 'babar.azam@email.com', '12345678901238', '2015-05-31', 'JOB005', 45000, 0.04, 'MNG003', 'DPT005'),
+('EMP006', 'Kane', 'Williamson', 'kane.w@email.com', '12345678901239', '2010-11-04', 'JOB006', 48000, 0.06, 'MNG003', 'DPT006'),
+('EMP007', 'Joe', 'Root', 'joe.root@email.com', '12345678901240', '2012-12-13', 'JOB007', 52000, 0.03, 'MNG004', 'DPT007'),
+('EMP008', 'David', 'Warner', 'david.w@email.com', '12345678901241', '2009-01-11', 'JOB008', 50000, 0.05, 'MNG004', 'DPT001'),
+('EMP009', 'Ben', 'Stokes', 'ben.stokes@email.com', '12345678901242', '2013-12-05', 'JOB009', 49000, 0.04, 'MNG005', 'DPT002'),
+('EMP010', 'Rashid', 'Khan', 'rashid.khan@email.com', '12345678901243', '2017-06-09', 'JOB010', 47000, 0.02, 'MNG005', 'DPT003');
+
+SELECT * FROM Employee;
+
+1.
+SELECT first_name, last_name, email, phone_number, hire_date, department_id 
+FROM Employee 
+WHERE hire_date = (SELECT MAX(hire_date) FROM Employee);
+
+2. 
+SELECT first_name, last_name, employee_id, phone_number, salary, department_id
+FROM Employee e1
+WHERE salary = (
+    SELECT MIN(salary)
+    FROM Employee e2
+    WHERE e1.department_id = e2.department_id
+
+3. 
+SELECT first_name, last_name, employee_id, commission_pct, department_id
+FROM Employee
+WHERE department_id = 'DPT007'
+AND commission_pct < ALL (SELECT MIN(commission_pct) FROM Employee WHERE department_id = 'DPT005');
+
+4. 
+
+INSERT INTO Employee (employee_id, first_name, last_name, email, phone_number, hire_date, job_id, salary, commission_pct, manager_id, department_id)
+VALUES 
+('EMP019', 'Rahul', 'Dravid', 'rahul.d@email.com', '12345678901252', '1996-04-03', 'JOB019', 29000, 0.01, 'MNG010', 'DPT008'),
+('EMP020', 'Anil', 'Kumble', 'anil.k@email.com', '12345678901253', '1990-10-25', 'JOB020', 28000, 0.01, 'MNG010', 'DPT008'),
+('EMP021', 'Ravindra', 'Jadeja', 'ravindra.j@email.com', '12345678901254', '2012-04-08', 'JOB021', 40000, 0.04, 'MNG011', 'DPT009'),
+('EMP022', 'Glenn', 'Maxwell', 'glenn.m@email.com', '12345678901255', '2010-05-14', 'JOB022', 42000, 0.06, 'MNG011', 'DPT009'),
+('EMP023', 'Yuvraj', 'Singh', 'yuvraj.s@email.com', '12345678901256', '2000-10-03', 'JOB023', 37000, 0.05, 'MNG012', 'DPT010'),
+('EMP024', 'Shaun', 'Marsh', 'shaun.m@email.com', '12345678901257', '2008-06-15', 'JOB024', 38000, 0.04, 'MNG012', 'DPT010'),
+('EMP025', 'Faf', 'du Plessis', 'faf.d@email.com', '12345678901258', '2011-12-18', 'JOB025', 41000, 0.02, 'MNG013', 'DPT011'),
+('EMP026', 'Tim', 'Southee', 'tim.s@email.com', '12345678901259', '2008-03-22', 'JOB026', 43000, 0.03, 'MNG013', 'DPT011');
+
+
+SELECT department_id, COUNT(*) AS total_employees
+FROM Employee
+GROUP BY department_id
+HAVING MAX(salary) <= 30000;
+
+5. 
+SELECT e1.department_id, e1.job_id, e1.commission_pct
+FROM Employee e1
+WHERE EXISTS (
+    SELECT 1
+    FROM Employee e2
+    WHERE e1.department_id = e2.department_id
+    AND e1.commission_pct < e2.commission_pct
+);
+
+6.
+ 
+SELECT manager_id
+FROM Employee
+GROUP BY manager_id
+HAVING MIN(salary) >= 3500;
+
+7. 
+
+SELECT first_name, last_name, employee_id, email, salary, department_id, commission_pct
+FROM Employee e1
+WHERE commission_pct = (
+    SELECT MIN(e2.commission_pct)
+    FROM Employee e2
+    WHERE e1.manager_id = e2.manager_id
+);
+
+
+
+
+
+

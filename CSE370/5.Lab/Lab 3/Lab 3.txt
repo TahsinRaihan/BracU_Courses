@@ -1,0 +1,77 @@
+mysql -u root -p
+
+CREATE DATABASE Bank_22201344;
+
+USE Bank_22201344;
+
+1.
+
+SELECT customer.customer_name, borrower.loan_number 
+FROM customer 
+INNER JOIN borrower ON customer.customer_id = borrower.customer_id
+INNER JOIN loan ON borrower.loan_number = loan.loan_number
+WHERE loan.branch_name = 'Downtown';
+
+2.
+
+SELECT c1.customer_name AS Customer1, c2.customer_name AS Customer2, c1.customer_city 
+FROM customer c1
+JOIN customer c2 ON c1.customer_city = c2.customer_city AND c1.customer_id < c2.customer_id;
+
+3.
+
+SELECT account.branch_name, SUM(account.balance * 0.04) AS total_interest
+FROM account
+GROUP BY account.branch_name;
+
+
+ 4.
+
+SELECT account.account_number, customer.customer_city, account.balance
+FROM account
+LEFT JOIN depositor ON account.account_number = depositor.account_number
+LEFT JOIN customer ON depositor.customer_id = customer.customer_id
+WHERE (customer.customer_city, account.balance) IN 
+  (SELECT customer.customer_city, MAX(account.balance)
+   FROM account
+   LEFT JOIN depositor ON account.account_number = depositor.account_number
+   LEFT JOIN customer ON depositor.customer_id = customer.customer_id
+   GROUP BY customer.customer_city);
+
+5.
+
+SELECT loan.loan_number, loan.amount, customer.customer_name 
+FROM loan
+JOIN borrower ON loan.loan_number = borrower.loan_number
+JOIN customer ON borrower.customer_id = customer.customer_id
+ORDER BY loan.amount ASC, loan.loan_number DESC
+LIMIT 5;
+
+
+
+ 6.
+
+SELECT DISTINCT customer.customer_name
+FROM customer
+JOIN depositor ON customer.customer_id = depositor.customer_id
+JOIN account ON depositor.account_number = account.account_number
+JOIN borrower ON customer.customer_id = borrower.customer_id
+JOIN loan ON borrower.loan_number = loan.loan_number
+WHERE account.branch_name = 'Perryridge' AND loan.branch_name = 'Perryridge';
+
+
+7.
+
+SELECT customer.customer_name, SUM(loan.amount) AS total_loan
+FROM customer
+JOIN borrower ON customer.customer_id = borrower.customer_id
+JOIN loan ON borrower.loan_number = loan.loan_number
+GROUP BY customer.customer_name
+HAVING COUNT(loan.loan_number) >= 2;
+
+
+
+
+
+
+

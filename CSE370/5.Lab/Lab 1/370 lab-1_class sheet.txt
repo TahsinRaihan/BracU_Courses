@@ -1,0 +1,85 @@
+mysql -u root -p  
+SHOW DATABASES;
+CREATE DATABASE db_tahsin;
+Use db_tahsin;
+SHOW TABLES;
+
+CREATE TABLE Lab_Grades
+(
+  std_id char(4),
+  name varchar(30),
+  major char(3),
+  section char(1),
+  days_present int,
+  project_marks double,
+  cgpa decimal (3,2),
+  submission_date date
+);
+
+SELECT *
+FROM Lab_grades;
+
+ALTER TABLE Lab_grades
+ADD project_title char(10);
+
+DESCRIBE Lab_grades;
+
+ALTER TABLE Lab_grades
+MODIFY COLUMN project_title varchar(50);
+
+ALTER TABLE Lab_grades
+MODIFY COLUMN std_id char(8);
+
+ALTER TABLE Lab_grades
+DROP COLUMN project_title;
+
+ALTER TABLE Lab_grades
+CHANGE COLUMN submission_date sub_date DATE;
+
+DELETE FROM Lab_grades
+WHERE Name="Naima"
+
+DELETE FROM Lab_grades
+WHERE days_present <8
+
+UPDATE Lab_grades
+SET major="CSE"
+WHERE name="Arafat";
+
+UPDATE Lab_grades
+SET name="Naheed",
+project_marks=16 where std_id='s004';
+
+SELECT std_id,name,project_marks FROM Lab_grades;
+
+SELECT name,
+  project_marks+days_present*5/12 AS total_marks FROM Lab_grades;
+
+SELECT UPPER(name),LOWER(name) from Lab_Grades;
+
+SELECT DISTINCT major FROM Lab_grades;
+
+SELECT*
+FROM Lab_grades
+ORDER BY name;
+
+SELECT*
+FROM Lab_grades
+ORDER BY name ASC;
+
+SELECT*
+FROM Lab_grades
+ORDER BY name DESC;
+
+SELECT*
+FROM Lab_grades
+ORDER BY name DESC,
+sub_date ASC;
+ 
+SELECT *
+FROM Lab_grades
+WHERE name like "%a";
+
+SELECT *
+FROM Lab_grades
+WHERE name like "__a";
