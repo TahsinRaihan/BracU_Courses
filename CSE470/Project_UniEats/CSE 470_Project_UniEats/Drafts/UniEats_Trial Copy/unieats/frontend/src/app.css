@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    background-color: #fdf3e7;
+    color: #4a4a4a;
+    background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+    background-repeat: repeat;
+    font-family: serif;
+
+    /* ensure smooth scroll everywhere */
+    scroll-behavior: smooth;
+  }
+}

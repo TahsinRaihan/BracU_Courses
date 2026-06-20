@@ -1,0 +1,9 @@
+Mid class review: https://www.youtube.com/watch?v=v2Y5Nb5wp0s
+
+Scrum: https://www.youtube.com/watch?v=pcbA1MG0UZg
+
+Singleton and Adapter Pattern: https://www.youtube.com/watch?v=hdSuIvpp_e0
+
+Observer Pattern: https://www.youtube.com/watch?v=VG5d6cMl-Hc
+
+Cyclomatic Complexity review and SIX: https://www.youtube.com/watch?v=PnF5n6F_0JQ 
