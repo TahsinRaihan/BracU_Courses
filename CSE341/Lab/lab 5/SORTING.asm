@@ -1,0 +1,86 @@
+.MODEL SMALL
+.STACK 100H
+.DATA
+A db 5DUP(0)  
+X DB "ENTER YOUR ARRAY: $" 
+Y DB 10,13,"YOUR SORTED ARRAY: $"
+
+.CODE
+MAIN PROC
+; initialize DS
+MOV AX,@DATA
+MOV DS,AX
+
+LEA DX,X
+MOV AH,9
+INT 21H
+
+MOV CL,0
+MOV SI,0
+LOOP1:
+CMP CL,5
+JGE SORT_START  
+MOV AH,1
+INT 21H 
+SUB AL,30H
+MOV A[SI],AL
+ADD SI,1
+ADD CL,1
+JMP LOOP1
+
+
+SORT_START:
+    MOV CH, 5       
+
+OUTER_LOOP:         
+    MOV CL, 0       
+    MOV SI, 0       
+    
+INNER_LOOP:         
+    CMP CL, 4
+    JGE END_INNER   
+    
+    MOV AL, A[SI]
+    MOV BL, A[SI+1]
+    
+    CMP AL, BL
+    JLE SKIP_SWAP
+    
+    
+    MOV A[SI], BL
+    MOV A[SI+1], AL
+    
+SKIP_SWAP:          
+    ADD SI, 1
+    ADD CL, 1
+    JMP INNER_LOOP
+
+END_INNER:
+    DEC CH          
+    CMP CH, 0       
+    JG OUTER_LOOP   
+
+
+PRINT:
+    LEA DX,Y
+    MOV AH,9
+    INT 21H
+    MOV CL,0
+    MOV SI,0
+LOOP3:
+    CMP CL,5
+    JGE END_PROG  
+    MOV AH,2
+    MOV DL,A[SI]
+    ADD DL,30H
+    INT 21H
+    ADD SI,1
+    ADD CL,1
+    JMP LOOP3
+
+END_PROG:
+    ;exit to DOS
+    MOV AX,4C00H
+    INT 21H
+MAIN ENDP
+END MAIN
