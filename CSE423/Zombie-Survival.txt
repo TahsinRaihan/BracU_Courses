@@ -1,0 +1,11 @@
+Zombie-Survival
+
+Features-
+1. TOV-FOV zombie shooting game.
+2. Level wise difficulity increase.
+3. Health Pickup-Randomly spawn a green cube sometimes — if player touches it, gain 1 life
+4. Difficulty Increase-Every new wave can have faster zombies, more zombies, or both
+5. Health Score will be shown on bar
+6. Powerups-Sometimes spawn shields or weapons to pick up
+7. Explotion effect-When a zombie dies, create some small explosion or dust particle effects for style
+

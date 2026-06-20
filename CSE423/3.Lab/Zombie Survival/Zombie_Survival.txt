@@ -1,0 +1,74 @@
+
+Zombie Survival Game Plan
+
+Base Requirements
+------------------
+- Project must be built strictly using the previously submitted 3D shooting game code as the template (no external libraries/assets).
+- Maintain the original mechanics but enhance gameplay, visuals, and difficulty.
+
+Core Features
+-------------
+1. TOV-FOV Zombie Shooting
+   - Third-person/top-down style view.
+   - Player shoots zombies approaching from visible directions.
+
+2. Wave-Based Difficulty Progression
+   - Each wave increases:
+     - Number of zombies
+     - Zombie speed
+
+3. Health Pickup (Pink Cube)
+   - Randomly spawns during waves.
+   - Touching the pink cube increases player health by 1.
+   - Limit max health to a cap (e.g., 5).
+
+4. Zombie Types (Color-Coded)
+   - Normal Zombie – Default behavior (green)
+   - Runner – Fast, low health (Blue)
+   - Tank – Slow, high health (Red)
+
+5. Power-Ups
+   - Spawn randomly, disappear after a few seconds if not picked.
+   - Types:
+     - Shield: Absorbs one zombie hit.
+     - Weapon Upgrade: Temporarily increases bullet damage (faster zombie kill).
+   - Display countdown timer for active power-ups on screen.
+
+6. Player UI (HUD)
+   - Health Bar (Color-coded):
+     - Green = High, Yellow = Medium, Red = Low
+   - Wave Number or level number- show in bar
+   - Score (Zombies killed)- number
+   - Weapon Power Level- inital zero increases per wepon orb
+   -remainin bullets- number
+
+7. Explosion/Death Effects
+   - When a zombie is shot:
+     - Create particle/explosion animation using small cubes that disperse briefly.
+     - Keep effect simple and short (≤ 0.5s).
+
+8. Weapon Upgrade System
+   - Each successful power-up increases weapon damage.
+   - Show weapon level or damage multiplier on screen.
+
+9. Game Over + Restart
+   - Display final wave number and total score.
+   - Prompt: “Press R to Restart” (no window close required).
+
+10. Cheating Mode
+   - if player press C shotter willl automaticly kill the zombies like playing alone see the template of i have provided and if press v in that mode it will be in fov.
+   - Display “CHEAT MODE ENABLED” text on screen when active.
+
+11. Wave Transition Notice
+   - After each wave ends, display: “Terror is Starting…” in big Red color  with a short pause.
+
+12.Visual Polish:
+
+---Add blood splatter effects when zombies are hit
+-- shooter death also falls to the ground
+
+13. Environment:
+---Add simple obstacles/barricades for tactical play
+14. Scoring:
+
+----Higher scores for killing special zombies
