@@ -1,5 +1,177 @@
-﻿node_modules/
-dist/
-build/
-.vscode/
-*.log
+﻿# ============================================================
+# BracU_Courses - .gitignore
+# ============================================================
+# Strategy: Keep academic content (PDF, PPTX, DOCX, images,
+# notebooks, source code). Exclude build artifacts, package
+# managers, compiled output, EDA tool caches, and nested
+# Git repositories that would conflict with this repo.
+# ============================================================
+
+
+# ------------------------------------------------------------
+# NESTED GIT REPOSITORIES
+# Exclude all embedded .git folders to avoid submodule issues.
+# Lab projects (CSE321, CSE341, etc.) that are linked to
+# their own repos will not be tracked here.
+# ------------------------------------------------------------
+**/.git
+**/.gitignore
+
+
+# ------------------------------------------------------------
+# NODE MODULES
+# CSE470 and CSE471 alone account for 220,000+ files from
+# node_modules. These are fully regenerable via npm install.
+# ------------------------------------------------------------
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.npm
+**/.yarn
+
+
+# ------------------------------------------------------------
+# PYTHON BUILD ARTIFACTS
+# CSE421, CSE443, CSE422 contain compiled Python and caches.
+# ------------------------------------------------------------
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.Python
+**/build/
+**/dist/
+**/*.egg-info/
+**/.eggs/
+**/*.egg
+**/.env
+**/.venv
+**/env/
+**/venv/
+**/.mypy_cache/
+**/.pytest_cache/
+**/.tox/
+
+
+# ------------------------------------------------------------
+# C / C++ COMPILED OUTPUT
+# CSE321 (xv6 kernel), CSE341 (Assembly) produce object files.
+# ------------------------------------------------------------
+**/*.o
+**/*.obj
+**/*.a
+**/*.so
+**/*.out
+**/*.elf
+**/*.d
+**/*.ko
+**/*.mod.c
+**/*.order
+**/*.symvers
+
+
+# ------------------------------------------------------------
+# JAVASCRIPT / TYPESCRIPT BUILD OUTPUT
+# Source maps and compiled JS from CSE470/CSE471 projects.
+# ------------------------------------------------------------
+**/*.map
+**/dist/
+**/build/
+**/.next/
+**/.nuxt/
+**/.svelte-kit/
+**/.cache/
+
+
+# ------------------------------------------------------------
+# EDA / CIRCUIT DESIGN TOOL FILES (CSE460)
+# Quartus/Altera generated files that are not source material.
+# Keeping: .sch (schematics), .sym (symbols), PDF reports.
+# Excluding: Database caches, incremental compile artifacts.
+# ------------------------------------------------------------
+**/*.cdb
+**/*.hdb
+**/*.qmsg
+**/*.rpt
+**/*.summary
+**/*.smsg
+**/*.done
+**/*.pin
+**/*.pof
+**/db/
+**/incremental_db/
+**/simulation/
+
+
+# ------------------------------------------------------------
+# OPERATING SYSTEM FILES
+# ------------------------------------------------------------
+.DS_Store
+**/.DS_Store
+Thumbs.db
+desktop.ini
+**/$RECYCLE.BIN/
+**/._*
+
+
+# ------------------------------------------------------------
+# LARGE BINARY / ARCHIVE FILES (over ~100 MB threshold)
+# ZIP archives of full projects should not be tracked.
+# Individual content ZIPs (small) can be added manually
+# with: git add --force path/to/file.zip
+# ------------------------------------------------------------
+**/*.zip
+**/*.tar.gz
+**/*.tar
+**/*.rar
+**/*.7z
+
+
+# ------------------------------------------------------------
+# DATABASE AND SYSTEM FILES
+# ------------------------------------------------------------
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+
+# ------------------------------------------------------------
+# LOG AND TEMPORARY FILES
+# ------------------------------------------------------------
+**/*.log
+**/*.tmp
+**/*.temp
+**/*.bak
+**/*.swp
+**/*~
+
+
+# ------------------------------------------------------------
+# JUPYTER NOTEBOOK CHECKPOINTS
+# Notebooks themselves (.ipynb) ARE kept.
+# ------------------------------------------------------------
+**/.ipynb_checkpoints/
+
+
+# ------------------------------------------------------------
+# COMPILED / BINARY LIBRARY FILES (CSE443 - Data Science)
+# Python scientific stack binaries (.pyi stubs are kept).
+# ------------------------------------------------------------
+**/*.so.*
+**/*.dll
+**/*.dylib
+**/*.lib
+**/*.pdb
+
+
+# ------------------------------------------------------------
+# FORTRAN / SCIENTIFIC COMPILED FILES
+# ------------------------------------------------------------
+**/*.mod
+**/*.f90~
+
+
+# ============================================================
+# END OF .gitignore
+# ============================================================
