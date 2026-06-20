@@ -1,0 +1,409 @@
+-- =====================================================
+-- COMPLETE FIXED DATABASE SCHEMA FOR UNIVERSE APP
+-- =====================================================
+
+-- Drop existing objects if they exist (for clean setup)
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+DROP FUNCTION IF EXISTS public.generate_display_name(TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.get_active_banners() CASCADE;
+DROP TABLE IF EXISTS public.banner_requests CASCADE;
+DROP TABLE IF EXISTS public.notifications CASCADE;
+DROP TABLE IF EXISTS public.event_reminders CASCADE;
+DROP TABLE IF EXISTS public.events CASCADE;
+DROP TABLE IF EXISTS public.user_roles CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+-- Create profiles table (must be created first)
+CREATE TABLE public.profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  email TEXT NOT NULL CHECK (email ~~ '%@g.bracu.ac.bd'::text),
+  display_name TEXT,
+  nickname TEXT,
+  mobile_phone TEXT,
+  alternative_email TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  student_id TEXT CHECK (student_id IS NULL OR student_id ~ '^[0-9]{8}$'),
+  department TEXT,
+  semester TEXT,
+  profile_completed BOOLEAN DEFAULT false
+);
+
+-- Create user roles table
+CREATE TABLE public.user_roles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'admin')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Function to auto-generate display name from email
+CREATE OR REPLACE FUNCTION public.generate_display_name(email_address TEXT)
+RETURNS TEXT AS $$
+BEGIN
+  -- Extract name part before @ and convert to uppercase
+  RETURN UPPER(REPLACE(SPLIT_PART(email_address, '@', 1), '.', ' '));
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger function to auto-create profile when user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, display_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    public.generate_display_name(NEW.email)
+  );
+  
+  INSERT INTO public.user_roles (id, role)
+  VALUES (NEW.id, 'student');
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Trigger that fires when a new user signs up
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Create events table (for admin posts about events and ads)
+CREATE TABLE public.events (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  event_type TEXT NOT NULL CHECK (event_type IN ('event', 'ad', 'announcement')),
+  event_date TIMESTAMP WITH TIME ZONE,
+  location TEXT,
+  image_url TEXT,
+  created_by UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_active BOOLEAN DEFAULT true
+);
+
+-- Create event reminders table (users can click reminder on events)
+CREATE TABLE public.event_reminders (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  event_id UUID REFERENCES public.events(id) ON DELETE CASCADE NOT NULL,
+  reminder_time TIMESTAMP WITH TIME ZONE,
+  is_sent BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- Prevent duplicate reminders for same user/event
+  UNIQUE(user_id, event_id)
+);
+
+-- Note: Profiles table is now created with all columns and constraints above
+
+-- Create notifications table for centralized dashboard
+CREATE TABLE public.notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('study_room', 'event', 'transaction', 'food_order', 'general', 'banner_request')),
+  is_read BOOLEAN DEFAULT false,
+  action_url TEXT, -- link to relevant page
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Create index for faster queries
+CREATE INDEX idx_notifications_user_unread ON public.notifications(user_id, is_read, created_at);
+
+-- Create banner advertisement requests table
+CREATE TABLE public.banner_requests (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  image_url TEXT,
+  target_url TEXT, -- where banner links to
+  duration_days INTEGER DEFAULT 7, -- how long to display
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'expired')),
+  admin_notes TEXT, -- admin feedback/reason for rejection
+  reviewed_by UUID REFERENCES auth.users(id),
+  reviewed_at TIMESTAMP WITH TIME ZONE,
+  start_date TIMESTAMP WITH TIME ZONE,
+  end_date TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create function for active banners (replaces view to avoid SECURITY DEFINER issues)
+CREATE OR REPLACE FUNCTION public.get_active_banners()
+RETURNS TABLE (
+  id UUID,
+  title TEXT,
+  description TEXT,
+  image_url TEXT,
+  target_url TEXT,
+  start_date TIMESTAMP WITH TIME ZONE,
+  end_date TIMESTAMP WITH TIME ZONE
+) 
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    br.id, br.title, br.description, br.image_url, br.target_url, 
+    br.start_date, br.end_date
+  FROM public.banner_requests br
+  WHERE br.status = 'approved' 
+    AND br.start_date <= NOW() 
+    AND (br.end_date IS NULL OR br.end_date > NOW());
+END;
+$$;
+
+-- =====================================================
+-- ENABLE ROW LEVEL SECURITY ON ALL TABLES
+-- =====================================================
+
+-- Enable RLS on profiles table
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on user_roles table
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on events table
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on event_reminders table
+ALTER TABLE public.event_reminders ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on notifications table
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on banner_requests table
+ALTER TABLE public.banner_requests ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================
+-- CREATE RLS POLICIES FOR ALL TABLES
+-- =====================================================
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_insert_own" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
+
+DROP POLICY IF EXISTS "user_roles_select_own" ON public.user_roles;
+DROP POLICY IF EXISTS "user_roles_insert_own" ON public.user_roles;
+DROP POLICY IF EXISTS "user_roles_select_admin" ON public.user_roles;
+
+DROP POLICY IF EXISTS "events_select_public" ON public.events;
+DROP POLICY IF EXISTS "events_select_own" ON public.events;
+DROP POLICY IF EXISTS "events_insert_own" ON public.events;
+DROP POLICY IF EXISTS "events_update_own" ON public.events;
+DROP POLICY IF EXISTS "events_admin_all" ON public.events;
+
+DROP POLICY IF EXISTS "event_reminders_select_own" ON public.event_reminders;
+DROP POLICY IF EXISTS "event_reminders_insert_own" ON public.event_reminders;
+DROP POLICY IF EXISTS "event_reminders_update_own" ON public.event_reminders;
+DROP POLICY IF EXISTS "event_reminders_delete_own" ON public.event_reminders;
+
+DROP POLICY IF EXISTS "notifications_select_own" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_insert_own" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_update_own" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_delete_own" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_admin_all" ON public.notifications;
+
+DROP POLICY IF EXISTS "banner_requests_select_own" ON public.banner_requests;
+DROP POLICY IF EXISTS "banner_requests_insert_own" ON public.banner_requests;
+DROP POLICY IF EXISTS "banner_requests_update_own" ON public.banner_requests;
+DROP POLICY IF EXISTS "banner_requests_admin_all" ON public.banner_requests;
+
+-- Profiles policies
+CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
+-- User roles policies
+CREATE POLICY "user_roles_select_own" ON public.user_roles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "user_roles_insert_own" ON public.user_roles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "user_roles_select_admin" ON public.user_roles FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
+
+-- Events policies
+CREATE POLICY "events_select_public" ON public.events FOR SELECT USING (is_active = true);
+CREATE POLICY "events_select_own" ON public.events FOR SELECT USING (created_by = auth.uid());
+CREATE POLICY "events_insert_own" ON public.events FOR INSERT WITH CHECK (created_by = auth.uid());
+CREATE POLICY "events_update_own" ON public.events FOR UPDATE USING (created_by = auth.uid()) WITH CHECK (created_by = auth.uid());
+CREATE POLICY "events_admin_all" ON public.events FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
+
+-- Event reminders policies
+CREATE POLICY "event_reminders_select_own" ON public.event_reminders FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "event_reminders_insert_own" ON public.event_reminders FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "event_reminders_update_own" ON public.event_reminders FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "event_reminders_delete_own" ON public.event_reminders FOR DELETE USING (user_id = auth.uid());
+
+-- Notifications policies
+CREATE POLICY "notifications_select_own" ON public.notifications FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "notifications_insert_own" ON public.notifications FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "notifications_update_own" ON public.notifications FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "notifications_delete_own" ON public.notifications FOR DELETE USING (user_id = auth.uid());
+CREATE POLICY "notifications_admin_all" ON public.notifications FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
+
+-- Banner requests policies
+CREATE POLICY "banner_requests_select_own" ON public.banner_requests FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "banner_requests_insert_own" ON public.banner_requests FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "banner_requests_update_own" ON public.banner_requests FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "banner_requests_admin_all" ON public.banner_requests FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
+
+-- =====================================================
+-- GRANT NECESSARY PERMISSIONS
+-- =====================================================
+
+-- Grant permissions for authenticated users
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT ALL ON public.profiles TO authenticated;
+GRANT ALL ON public.user_roles TO authenticated;
+GRANT ALL ON public.events TO authenticated;
+GRANT ALL ON public.event_reminders TO authenticated;
+GRANT ALL ON public.notifications TO authenticated;
+GRANT ALL ON public.banner_requests TO authenticated;
+
+-- Grant permissions for the trigger functions
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.generate_display_name(TEXT) TO authenticated;
+
+-- Grant permissions for the active banners function
+GRANT EXECUTE ON FUNCTION public.get_active_banners() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_active_banners() TO anon;
+
+-- =====================================================
+-- VERIFICATION QUERY (optional - can be removed)
+-- =====================================================
+
+-- Show all tables with their columns and data types
+SELECT 
+  t.table_name,
+  c.column_name,
+  c.data_type,
+  c.is_nullable,
+  c.column_default
+FROM information_schema.tables t
+JOIN information_schema.columns c ON t.table_name = c.table_name
+WHERE t.table_schema = 'public'
+ORDER BY t.table_name, c.ordinal_position;
+
+-- =====================================================
+-- USAGE NOTES
+-- =====================================================
+
+-- To query active banners in your code, use:
+-- const { data } = await supabase.rpc('get_active_banners');
+-- Instead of: supabase.from('active_banners').select('*')
+--
+-- This function provides the same data as the view but without security issues.
+
+-- =====================================================
+-- LIBRARY BOOKS TABLE
+-- =====================================================
+
+-- Create books table for library management system
+CREATE TABLE books (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    isbn VARCHAR(20) UNIQUE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'borrowed', 'reserved')),
+    category VARCHAR(100) NOT NULL,
+    published_year INTEGER,
+    location VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert sample books data for testing
+INSERT INTO books (title, author, isbn, status, category, published_year, location) VALUES
+('The Great Gatsby', 'F. Scott Fitzgerald', '978-0743273565', 'available', 'Fiction', 1925, 'Shelf A1'),
+('To Kill a Mockingbird', 'Harper Lee', '978-0446310789', 'borrowed', 'Fiction', 1960, 'Shelf A2'),
+('1984', 'George Orwell', '978-0451524935', 'reserved', 'Dystopian', 1949, 'Shelf B1'),
+('Pride and Prejudice', 'Jane Austen', '978-0141439518', 'available', 'Romance', 1813, 'Shelf C1'),
+('The Hobbit', 'J.R.R. Tolkien', '978-0547928241', 'borrowed', 'Fantasy', 1937, 'Shelf D1');
+
+-- Enable Row Level Security on books table
+ALTER TABLE books ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for books table
+-- Allow all authenticated users to read books (public library)
+CREATE POLICY "books_select_public" ON books FOR SELECT USING (true);
+
+-- Only admins can insert, update, or delete books
+CREATE POLICY "books_admin_all" ON books FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
+
+-- Grant permissions for books table
+GRANT ALL ON books TO authenticated;
+
+
+
+--admin issue resolve -> 
+-- Create a function to get user role that bypasses RLS
+CREATE OR REPLACE FUNCTION public.get_user_role(user_id UUID)
+RETURNS TEXT AS $$
+BEGIN
+  RETURN (
+    SELECT role 
+    FROM public.user_roles 
+    WHERE id = user_id
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permission
+GRANT EXECUTE ON FUNCTION public.get_user_role(UUID) TO authenticated;
+
+
+-- Allow public read access to event images
+CREATE POLICY "Public read access for event images" ON storage.objects
+FOR SELECT USING (bucket_id = 'event-images');
+
+-- Allow authenticated users to upload event images
+CREATE POLICY "Authenticated users can upload event images" ON storage.objects
+FOR INSERT WITH CHECK (bucket_id = 'event-images' AND auth.role() = 'authenticated');
+
+
+-- Allow public read access to event images
+CREATE POLICY "Public read access for event images" ON storage.objects
+FOR SELECT USING (bucket_id = 'event-images');
+
+-- Allow authenticated users to upload event images
+CREATE POLICY "Authenticated users can upload event images" ON storage.objects
+FOR INSERT WITH CHECK (bucket_id = 'event-images' AND auth.role() = 'authenticated');
+
+
+DROP POLICY IF EXISTS "user_roles_select_admin" ON public.user_roles;
+
+
+

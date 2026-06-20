@@ -1,0 +1,1248 @@
+-- 1️⃣ Enable RLS on the cart_items table
+ALTER TABLE public.cart_items
+    ENABLE ROW LEVEL SECURITY;
+
+-- 2️⃣ INSERT policy – users can add rows only to their own cart
+CREATE POLICY "cart_items_insert_own"
+    ON public.cart_items
+    FOR INSERT
+    TO authenticated
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- 3️⃣ SELECT policy – users can view only their own cart items
+CREATE POLICY "cart_items_select_own"
+    ON public.cart_items
+    FOR SELECT
+    TO authenticated
+    USING ((SELECT auth.uid()) = user_id);
+
+-- 4️⃣ UPDATE policy – users can modify only their own cart items
+CREATE POLICY "cart_items_update_own"
+    ON public.cart_items
+    FOR UPDATE
+    TO authenticated
+    USING ((SELECT auth.uid()) = user_id)
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- 5️⃣ DELETE policy – users can delete only their own cart items
+CREATE POLICY "cart_items_delete_own"
+    ON public.cart_items
+    FOR DELETE
+    TO authenticated
+    USING ((SELECT auth.uid()) = user_id);
+
+
+
+-- Enable RLS on the orders table
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+-- INSERT: users can only insert rows that belong to them
+CREATE POLICY "orders_insert_own"
+ON public.orders
+FOR INSERT
+TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- SELECT: users can only read rows that belong to them
+CREATE POLICY "orders_select_own"
+ON public.orders
+FOR SELECT
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+-- UPDATE: users can only update rows that belong to them
+CREATE POLICY "orders_update_own"
+ON public.orders
+FOR UPDATE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- DELETE: users can only delete rows that belong to them
+CREATE POLICY "orders_delete_own"
+ON public.orders
+FOR DELETE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+-- INSERT: authenticated users can add items to their own orders
+CREATE POLICY "order_items_insert_own"
+ON public.order_items
+FOR INSERT TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- SELECT: authenticated users can view items of their own orders
+CREATE POLICY "order_items_select_own"
+ON public.order_items
+FOR SELECT TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+-- UPDATE: authenticated users can modify items of their own orders
+CREATE POLICY "order_items_update_own"
+ON public.order_items
+FOR UPDATE TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- DELETE: authenticated users can remove items from their own orders
+CREATE POLICY "order_items_delete_own"
+ON public.order_items
+FOR DELETE TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+
+ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
+
+-- INSERT: authenticated users can submit feedback for themselves
+CREATE POLICY feedback_insert_own ON public.feedback
+FOR INSERT TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- SELECT: authenticated users can view only their own feedback
+CREATE POLICY feedback_select_own ON public.feedback
+FOR SELECT TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+-- UPDATE: authenticated users can update only their own feedback
+CREATE POLICY feedback_update_own ON public.feedback
+FOR UPDATE TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- DELETE: authenticated users can delete only their own feedback
+CREATE POLICY feedback_delete_own ON public.feedback
+FOR DELETE TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+
+CREATE POLICY suggestions_insert_own
+ON public.suggestions
+FOR INSERT
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY suggestions_select_own
+ON public.suggestions
+FOR SELECT
+USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY suggestions_update_own
+ON public.suggestions
+FOR UPDATE
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY suggestions_delete_own
+ON public.suggestions
+FOR DELETE
+USING ((SELECT auth.uid()) = user_id);
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------Edit done
+-- Enable RLS on orders table
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on order_items table
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for orders table
+CREATE POLICY "anon_insert_orders" ON public.orders
+FOR INSERT TO anon, authenticated
+WITH CHECK (true); -- Allows any user (including anon) to insert
+
+CREATE POLICY "anon_select_orders" ON public.orders
+FOR SELECT TO authenticated
+USING (user_id = (SELECT auth.uid())); -- Only allow users to see their own orders (if authenticated)
+
+-- Create RLS policies for order_items table
+CREATE POLICY "anon_insert_order_items" ON public.order_items
+FOR INSERT TO anon, authenticated
+WITH CHECK (true); -- Allows any user (including anon) to insert
+
+CREATE POLICY "anon_select_order_items" ON public.order_items
+FOR SELECT TO authenticated
+USING (EXISTS (
+    SELECT 1 
+    FROM public.orders 
+    WHERE id = order_id 
+    AND user_id = (SELECT auth.uid())
+)); -- Only allow users to see order items for their own orders
+
+-- Grant necessary permissions
+GRANT ALL ON public.orders TO authenticated;
+GRANT ALL ON public.order_items TO authenticated;
+
+
+DROP POLICY IF EXISTS "anon_insert_orders" ON public.orders;
+DROP POLICY IF EXISTS "anon_insert_order_items" ON public.order_items;
+
+-- Create new RLS policy for orders (INSERT)
+CREATE POLICY "anon_and_authenticated_insert_orders" ON public.orders
+FOR INSERT WITH CHECK (
+  (auth.uid() IS NOT NULL AND user_id = auth.uid()) OR -- Authenticated user inserting their own order
+  (auth.role() = 'anon' AND user_id IS NOT NULL) -- Anonymous user inserting an order (user_id will be the anonymous UUID)
+);
+
+-- Create new RLS policy for order_items (INSERT)
+-- This policy assumes that order_id is already linked to a user_id in the orders table
+CREATE POLICY "anon_and_authenticated_insert_order_items" ON public.order_items
+FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.orders
+    WHERE orders.id = order_id
+    AND (
+      (auth.uid() IS NOT NULL AND orders.user_id = auth.uid()) OR -- Authenticated user's order
+      (auth.role() = 'anon' AND orders.user_id IS NOT NULL) -- Anonymous user's order
+    )
+  )
+);
+
+-- Ensure anon role has INSERT permission (already covered by GRANT ALL, but explicit for clarity)
+-- GRANT INSERT ON public.orders TO anon;
+-- GRANT INSERT ON public.order_items TO anon;
+
+
+-- Drop all existing RLS policies for orders and order_items
+DROP POLICY IF EXISTS "anon_and_authenticated_insert_orders" ON public.orders;
+DROP POLICY IF EXISTS "anon_select_orders" ON public.orders;
+DROP POLICY IF EXISTS "anon_and_authenticated_insert_order_items" ON public.order_items;
+DROP POLICY IF EXISTS "anon_select_order_items" ON public.order_items;
+DROP POLICY IF EXISTS "insert_orders_for_anon_and_authenticated" ON public.orders;
+DROP POLICY IF EXISTS "select_own_orders" ON public.orders;
+DROP POLICY IF EXISTS "insert_order_items_for_anon_and_authenticated" ON public.order_items;
+DROP POLICY IF EXISTS "select_own_order_items" ON public.order_items;
+
+
+-- Re-enable RLS on orders table
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+-- Re-enable RLS on order_items table
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for orders table
+-- Policy for INSERT: Allow anon role to insert any row, and authenticated users to insert their own rows
+CREATE POLICY "insert_orders_for_anon_and_authenticated" ON public.orders
+FOR INSERT WITH CHECK (
+  (auth.role() = 'anon') OR -- Allow anon role to insert
+  (auth.uid() IS NOT NULL AND user_id = auth.uid()) -- Authenticated user inserting their own order
+);
+
+-- Policy for SELECT: Allow users to see their own orders (both authenticated and anonymous)
+CREATE POLICY "select_own_orders" ON public.orders
+FOR SELECT USING (
+  (auth.uid() IS NOT NULL AND user_id = auth.uid()) OR -- Authenticated user seeing their own order
+  (auth.role() = 'anon' AND user_id IS NOT NULL) -- Anonymous user seeing their own order (based on user_id being present)
+);
+
+-- Create RLS policies for order_items table
+-- Policy for INSERT: Allow anon role to insert any row, and authenticated users to insert their own rows
+CREATE POLICY "insert_order_items_for_anon_and_authenticated" ON public.order_items
+FOR INSERT WITH CHECK (
+  (auth.role() = 'anon') OR -- Allow anon role to insert
+  (EXISTS (
+    SELECT 1 FROM public.orders
+    WHERE orders.id = order_id
+    AND (
+      (auth.uid() IS NOT NULL AND orders.user_id = auth.uid()) OR -- Authenticated user inserting for their order
+      (auth.role() = 'anon' AND orders.user_id IS NOT NULL) -- Anonymous user inserting for their order
+    )
+  ))
+);
+
+-- Policy for SELECT: Allow users to see order items for their own orders (both authenticated and anonymous)
+CREATE POLICY "select_own_order_items" ON public.order_items
+FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.orders
+    WHERE orders.id = order_id
+    AND (
+      (auth.uid() IS NOT NULL AND orders.user_id = auth.uid()) OR -- Authenticated user's order
+      (auth.role() = 'anon' AND orders.user_id IS NOT NULL) -- Anonymous user's order
+    )
+  )
+);
+
+-- Grant necessary permissions (reconfirming)
+GRANT ALL ON public.orders TO authenticated;
+GRANT ALL ON public.order_items TO authenticated;
+GRANT ALL ON public.orders TO anon;
+GRANT ALL ON public.order_items TO anon;
+
+
+-- Drop all existing RLS policies for orders and order_items
+DROP POLICY IF EXISTS "anon_and_authenticated_insert_orders" ON public.orders;
+DROP POLICY IF EXISTS "anon_select_orders" ON public.orders;
+DROP POLICY IF EXISTS "anon_and_authenticated_insert_order_items" ON public.order_items;
+DROP POLICY IF EXISTS "anon_select_order_items" ON public.order_items;
+DROP POLICY IF EXISTS "insert_orders_for_anon_and_authenticated" ON public.orders;
+DROP POLICY IF EXISTS "select_own_orders" ON public.orders;
+DROP POLICY IF EXISTS "insert_order_items_for_anon_and_authenticated" ON public.order_items;
+DROP POLICY IF EXISTS "select_own_order_items" ON public.order_items;
+
+
+-- Re-enable RLS on orders table
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+-- Re-enable RLS on order_items table
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for orders table
+-- Policy for INSERT: Allow anon role to insert any row, and authenticated users to insert their own rows
+CREATE POLICY "insert_orders_for_anon_and_authenticated" ON public.orders
+FOR INSERT WITH CHECK (
+  (auth.role() = 'anon') OR -- Allow anon role to insert
+  (auth.uid() IS NOT NULL AND user_id = auth.uid()) -- Authenticated user inserting their own order
+);
+
+-- Policy for SELECT: Allow users to see their own orders (both authenticated and anonymous)
+CREATE POLICY "select_own_orders" ON public.orders
+FOR SELECT USING (
+  (auth.uid() IS NOT NULL AND user_id = auth.uid()) OR -- Authenticated user seeing their own order
+  (auth.role() = 'anon' AND user_id IS NOT NULL) -- Anonymous user seeing their own order (based on user_id being present)
+);
+
+-- Create RLS policies for order_items table
+-- Policy for INSERT: Allow anon role to insert any row, and authenticated users to insert their own rows
+CREATE POLICY "insert_order_items_for_anon_and_authenticated" ON public.order_items
+FOR INSERT WITH CHECK (
+  (auth.role() = 'anon') OR -- Allow anon role to insert
+  (EXISTS (
+    SELECT 1 FROM public.orders
+    WHERE orders.id = order_id
+    AND (
+      (auth.uid() IS NOT NULL AND orders.user_id = auth.uid()) OR -- Authenticated user inserting for their order
+      (auth.role() = 'anon' AND orders.user_id IS NOT NULL) -- Anonymous user inserting for their order
+    )
+  ))
+);
+
+-- Policy for SELECT: Allow users to see order items for their own orders (both authenticated and anonymous)
+CREATE POLICY "select_own_order_items" ON public.order_items
+FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.orders
+    WHERE orders.id = order_id
+    AND (
+      (auth.uid() IS NOT NULL AND orders.user_id = auth.uid()) OR -- Authenticated user's order
+      (auth.role() = 'anon' AND orders.user_id IS NOT NULL) -- Anonymous user's order
+    )
+  )
+);
+
+-- Grant necessary permissions (reconfirming)
+GRANT ALL ON public.orders TO authenticated;
+GRANT ALL ON public.order_items TO authenticated;
+GRANT ALL ON public.orders TO anon;
+GRANT ALL ON public.order_items TO anon;
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+BEGIN;
+
+-- 1️⃣ Drop the foreign‑key constraint if it exists (no error if it’s already gone)
+ALTER TABLE public.orders
+  DROP CONSTRAINT IF EXISTS orders_user_id_fkey;
+
+-- 2️⃣ Set a default for `order_items.item_name`
+ALTER TABLE public.order_items
+  ALTER COLUMN item_name SET DEFAULT 'Unknown Item';
+
+-- 3️⃣ Convert `unit_price` to NUMERIC(10,2), set a default, and make it NOT NULL  
+--    The cast (`USING`) safely transforms existing values.
+ALTER TABLE public.order_items
+  ALTER COLUMN unit_price TYPE NUMERIC(10,2) USING unit_price::NUMERIC(10,2),
+  ALTER COLUMN unit_price SET DEFAULT 0.00,
+  ALTER COLUMN unit_price SET NOT NULL;
+
+-- 4️⃣ Backfill any rows that might still have NULL (extra safety)
+UPDATE public.order_items
+  SET unit_price = 0.00
+  WHERE unit_price IS NULL;
+
+COMMIT;
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Enable RLS
+ALTER TABLE favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cart_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
+
+-- Favorites Policies
+CREATE POLICY "Users can manage their own favorites" ON favorites
+FOR ALL TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Cart Items Policies
+CREATE POLICY "Users can manage their own cart items" ON cart_items
+FOR ALL TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Orders Policies
+CREATE POLICY "Users can manage their own orders" ON orders
+FOR ALL TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Order Items Policies
+CREATE POLICY "Users can view and insert order items for their orders" ON order_items
+FOR ALL TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM orders 
+        WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid()
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM orders 
+        WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid()
+    )
+);
+
+-- Menu Items Policy (public read-only access)
+CREATE POLICY "Allow public menu item browsing" ON menu_items
+FOR SELECT
+USING (TRUE);
+
+ALTER TABLE favorites
+ALTER COLUMN menu_item_id TYPE UUID USING md5(menu_item_id::text)::uuid;
+
+
+-- Enable Row Level Security
+ALTER TABLE favorites ENABLE ROW LEVEL SECURITY;
+
+-- Create the RLS policy
+CREATE POLICY "Allow anonymous insert for favorites" ON favorites 
+FOR INSERT 
+TO anon 
+WITH CHECK (true);
+
+/* --------------------------------------------------------------
+   Enable RLS on the target tables (run once per table)
+   -------------------------------------------------------------- */
+ALTER TABLE public.cart_items      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items     ENABLE ROW LEVEL SECURITY;
+
+
+/* --------------------------------------------------------------
+   cart_items – policies
+   -------------------------------------------------------------- */
+CREATE POLICY "Allow users to see their own cart items"
+    ON public.cart_items
+    FOR SELECT
+    USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Allow users to insert their own cart items"
+    ON public.cart_items
+    FOR INSERT
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Allow users to update their own cart items"
+    ON public.cart_items
+    FOR UPDATE
+    USING ((SELECT auth.uid()) = user_id)
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Allow users to delete their own cart items"
+    ON public.cart_items
+    FOR DELETE
+    USING ((SELECT auth.uid()) = user_id);
+
+
+/* --------------------------------------------------------------
+   orders – policies
+   -------------------------------------------------------------- */
+CREATE POLICY "Allow users to see their own orders"
+    ON public.orders
+    FOR SELECT
+    USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Allow users to insert their own orders"
+    ON public.orders
+    FOR INSERT
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Allow users to update their own orders"
+    ON public.orders
+    FOR UPDATE
+    USING ((SELECT auth.uid()) = user_id)
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Allow users to delete their own orders"
+    ON public.orders
+    FOR DELETE
+    USING ((SELECT auth.uid()) = user_id);
+
+
+/* --------------------------------------------------------------
+   order_items – policies
+   -------------------------------------------------------------- */
+CREATE POLICY "Allow users to see their own order items"
+    ON public.order_items
+    FOR SELECT
+    USING (
+        (SELECT auth.uid()) =
+        (SELECT user_id FROM public.orders WHERE id = order_id)
+    );
+
+CREATE POLICY "Allow users to insert their own order items"
+    ON public.order_items
+    FOR INSERT
+    WITH CHECK (
+        (SELECT auth.uid()) =
+        (SELECT user_id FROM public.orders WHERE id = order_id)
+    );
+
+CREATE POLICY "Allow users to update their own order items"
+    ON public.order_items
+    FOR UPDATE
+    USING (
+        (SELECT auth.uid()) =
+        (SELECT user_id FROM public.orders WHERE id = order_id)
+    )
+    WITH CHECK (
+        (SELECT auth.uid()) =
+        (SELECT user_id FROM public.orders WHERE id = order_id)
+    );
+
+CREATE POLICY "Allow users to delete their own order items"
+    ON public.order_items
+    FOR DELETE
+    USING (
+        (SELECT auth.uid()) =
+        (SELECT user_id FROM public.orders WHERE id = order_id)
+    );
+
+/* Enable RLS on the orders table */
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+/* SELECT policy: users can read their own orders */
+CREATE POLICY "Users can read own orders"
+ON public.orders
+FOR SELECT TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+/* INSERT policy: users can insert orders with their own user_id */
+CREATE POLICY "Users can insert own orders"
+ON public.orders
+FOR INSERT TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+/* UPDATE policy: users can update their own orders */
+CREATE POLICY "Users can update own orders"
+ON public.orders
+FOR UPDATE TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+/* DELETE policy: users can delete their own orders */
+CREATE POLICY "Users can delete own orders"
+ON public.orders
+FOR DELETE TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS "order_items_select_own" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_select_own" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_insert_own" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_update_own" ON public.order_items;
+
+-- Enable RLS on the "order_items" table
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+-- Policy for SELECT operations: Users can only read their own order_items
+CREATE POLICY "Enable read access for users based on order_items user_id"
+ON public.order_items FOR SELECT
+USING ((SELECT auth.uid()) = user_id);
+
+-- Policy for INSERT operations: Users can only insert order_items with their own user_id
+CREATE POLICY "Enable insert for authenticated users on order_items"
+ON public.order_items FOR INSERT
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- Policy for UPDATE operations: Users can only update their own order_items
+CREATE POLICY "Enable update for users based on order_items user_id"
+ON public.order_items FOR UPDATE
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- Policy for DELETE operations: Users can only delete their own order_items
+CREATE POLICY "Enable delete for users based on order_items user_id"
+ON public.order_items FOR DELETE
+USING ((SELECT auth.uid()) = user_id);
+
+-- Drop existing RLS policies on "order_items"
+DROP POLICY IF EXISTS "Enable read access for users based on order_items user_id"
+    ON public.order_items;
+DROP POLICY IF EXISTS "Enable insert for authenticated users on order_items"
+    ON public.order_items;
+DROP POLICY IF EXISTS "Enable update for users based on order_items user_id"
+    ON public.order_items;
+DROP POLICY IF EXISTS "Enable delete for users based on order_items user_id"
+    ON public.order_items;
+
+-- New RLS Policy for SELECT operations on "order_items"
+-- Users can only read order_items if their parent order's user_id matches auth.uid()
+CREATE POLICY "Enable read access for users based on parent order user_id"
+    ON public.order_items
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.orders AS o
+            WHERE o.id = order_id
+              AND o.user_id = (SELECT auth.uid())
+        )
+    );
+
+-- New RLS Policy for INSERT operations on "order_items"
+-- Users can only insert order_items if their parent order's user_id matches auth.uid()
+CREATE POLICY "Enable insert for users based on parent order user_id"
+    ON public.order_items
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.orders AS o
+            WHERE o.id = order_id
+              AND o.user_id = (SELECT auth.uid())
+        )
+    );
+
+-- New RLS Policy for UPDATE operations on "order_items"
+-- Users can only update order_items if their parent order's user_id matches auth.uid()
+CREATE POLICY "Enable update for users based on parent order user_id"
+    ON public.order_items
+    FOR UPDATE TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.orders AS o
+            WHERE o.id = order_id
+              AND o.user_id = (SELECT auth.uid())
+        )
+    );
+
+-- New RLS Policy for DELETE operations on "order_items"
+-- Users can only delete order_items if their parent order's user_id matches auth.uid()
+CREATE POLICY "Enable delete for users based on parent order user_id"
+    ON public.order_items
+    FOR DELETE TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.orders AS o
+            WHERE o.id = order_id
+              AND o.user_id = (SELECT auth.uid())
+        )
+    );
+/* ------------------------------------------------- */
+/* 1️⃣ Enable Row‑Level Security on both tables      */
+/* ------------------------------------------------- */
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+/* ------------------------------------------------- */
+/* 2️⃣ Drop existing policies on **orders** (if any) */
+/* ------------------------------------------------- */
+DROP POLICY IF EXISTS "Enable read access for users based on user_id"          ON public.orders;
+DROP POLICY IF EXISTS "Enable insert for authenticated users"                ON public.orders;
+DROP POLICY IF EXISTS "Enable update for users based on user_id"              ON public.orders;
+DROP POLICY IF EXISTS "Enable delete for users based on user_id"              ON public.orders;
+
+/* ------------------------------------------------- */
+/* 3️⃣ Re‑create the policies for **orders**        */
+/* ------------------------------------------------- */
+CREATE POLICY "Enable read access for users based on user_id"
+  ON public.orders
+  FOR SELECT
+  USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Enable insert for authenticated users"
+  ON public.orders
+  FOR INSERT
+  WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Enable update for users based on user_id"
+  ON public.orders
+  FOR UPDATE
+  USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Enable delete for users based on user_id"
+  ON public.orders
+  FOR DELETE
+  USING ((SELECT auth.uid()) = user_id);
+
+/* ------------------------------------------------- */
+/* 4️⃣ Drop existing policies on **order_items**   */
+/* ------------------------------------------------- */
+DROP POLICY IF EXISTS "Enable read access for users based on parent order user_id" ON public.order_items;
+DROP POLICY IF EXISTS "Enable insert for users based on parent order user_id"     ON public.order_items;
+DROP POLICY IF EXISTS "Enable update for users based on parent order user_id"     ON public.order_items;
+DROP POLICY IF EXISTS "Enable delete for users based on parent order user_id"     ON public.order_items;
+
+/* ------------------------------------------------- */
+/* 5️⃣ Re‑create the policies for **order_items**  */
+/* ------------------------------------------------- */
+CREATE POLICY "Enable read access for users based on parent order user_id"
+  ON public.order_items
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.orders o
+      WHERE o.id = order_items.order_id
+        AND o.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Enable insert for users based on parent order user_id"
+  ON public.order_items
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM public.orders o
+      WHERE o.id = order_items.order_id
+        AND o.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Enable update for users based on parent order user_id"
+  ON public.order_items
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.orders o
+      WHERE o.id = order_items.order_id
+        AND o.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Enable delete for users based on parent order user_id"
+  ON public.order_items
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.orders o
+      WHERE o.id = order_items.order_id
+        AND o.user_id = (SELECT auth.uid())
+    )
+  );
+
+
+
+-- -------------------------------------------------
+-- 1.  Add a new column to the cart_items table
+-- -------------------------------------------------
+ALTER TABLE public.cart_items
+  ADD COLUMN scheduled_at timestamp with time zone;   -- ← end with ;
+
+
+-- -------------------------------------------------
+-- 2.  Add a foreign‑key constraint to favorites
+-- -------------------------------------------------
+ALTER TABLE public.favorites
+  ADD CONSTRAINT fk_menu_item
+  FOREIGN KEY (menu_item_id)
+  REFERENCES public.menu_items (id);                -- ← end with ;
+
+
+-- -------------------------------------------------
+-- 3.  Row‑level security policies for favorites
+-- -------------------------------------------------
+CREATE POLICY "Allow logged‑in users to view their own favorites"
+  ON public.favorites
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);                     -- ← end with ;
+
+
+-- -------------------------------------------------
+-- 4.  Public read‑only policy for menu_items
+-- -------------------------------------------------
+CREATE POLICY "Allow public read access"
+  ON public.menu_items
+  FOR SELECT
+  TO anon                                          -- “public” → “anon” (unauthenticated users)
+  USING (true);                                    -- ← end with ;
+
+
+-- -------------------------------------------------
+-- 5.  Enable RLS on reviews (once is enough)
+-- -------------------------------------------------
+ALTER TABLE public.reviews
+  ENABLE ROW LEVEL SECURITY;                       -- ← end with ;
+
+
+-- -------------------------------------------------
+-- 6.  Policies for reviews (insert & select)
+-- -------------------------------------------------
+CREATE POLICY "Allow authenticated users to insert reviews"
+  ON public.reviews
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);               -- ← end with ;
+
+
+CREATE POLICY "Allow public read access to all reviews"
+  ON public.reviews
+  FOR SELECT
+  TO anon                                          -- public → anon
+  USING (true);                                    -- ← end with ;
+
+
+CREATE POLICY "Allow users to insert reviews for themselves"
+  ON public.reviews
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);               -- ← end with ;
+
+
+
+
+-------------------------------------------------------------------------------------------New policies-------------------------------------------------------------------
+
+--------------------------cart items---------------------------
+
+/* Enable row‑level security on the table */
+ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
+
+/* -------------------------------------------------
+   Anonymous user policies (role = 'anon')
+   ------------------------------------------------- */
+
+/* Delete – allow anon to delete only their own rows */
+CREATE POLICY "Allow anonymous delete for cart_items"
+    ON public.cart_items
+    FOR DELETE
+    TO anon
+    USING ((user_id = auth.uid()) OR (auth.role() = 'anon'));
+
+/* Insert – allow anon to insert only when role is anon */
+CREATE POLICY "Allow anonymous insert for cart_items"
+    ON public.cart_items
+    FOR INSERT
+    TO anon
+    WITH CHECK (auth.role() = 'anon');
+
+/* Select – allow anon to read only their own rows */
+CREATE POLICY "Allow anonymous select for cart_items"
+    ON public.cart_items
+    FOR SELECT
+    TO anon
+    USING ((user_id = auth.uid()) OR (auth.role() = 'anon'));
+
+/* Update – allow anon to update only their own rows */
+CREATE POLICY "Allow anonymous update for cart_items"
+    ON public.cart_items
+    FOR UPDATE
+    TO anon
+    USING ((user_id = auth.uid()) OR (auth.role() = 'anon'));
+
+/* -------------------------------------------------
+   Authenticated user policies (role = authenticated)
+   ------------------------------------------------- */
+
+/* Delete – signed‑in users can delete their own rows */
+CREATE POLICY "user_cart_delete_policy"
+    ON public.cart_items
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() = user_id);
+
+/* Insert – signed‑in users can insert rows that belong to them */
+CREATE POLICY "user_cart_insert_policy"
+    ON public.cart_items
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
+
+/* Select – signed‑in users can read their own rows */
+CREATE POLICY "user_cart_select_policy"
+    ON public.cart_items
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
+
+/* Update – signed‑in users can update their own rows */
+CREATE POLICY "user_cart_update_policy"
+    ON public.cart_items
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = user_id);
+
+-----------------------------------------Order items-------------------------------------------
+
+/* -------------------------------------------------
+   1️⃣ Ensure RLS is enabled on the table
+   ------------------------------------------------- */
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+/* -------------------------------------------------
+   2️⃣ Create the policies (if they don’t already exist)
+   ------------------------------------------------- */
+CREATE POLICY "Allow anonymous insert for order_items"
+  ON public.order_items
+  FOR INSERT
+  TO anon
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM public.orders o
+      WHERE o.id = order_items.order_id
+        AND (o.user_id = auth.uid() OR auth.role() = 'anon')
+    )
+  );
+
+CREATE POLICY "Allow anonymous select for order_items"
+  ON public.order_items
+  FOR SELECT
+  TO anon
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.orders o
+      WHERE o.id = order_items.order_id
+        AND (o.user_id = auth.uid() OR auth.role() = 'anon')
+    )
+  );
+
+CREATE POLICY "order_items_admin_all"
+  ON public.order_items
+  FOR ALL               -- applies to SELECT, INSERT, UPDATE, DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.user_roles ur
+      WHERE ur.id = auth.uid()
+        AND ur.role = 'admin'
+    )
+  );
+
+
+----------------------------------------------------------------------------Orders------------------------------
+
+/* Enable RLS on the orders table if it is not already enabled */
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+/* Remove any existing policies with the same names (if they exist) */
+DROP POLICY IF EXISTS "Allow anonymous insert for orders" ON public.orders;
+DROP POLICY IF EXISTS "Allow anonymous select for orders" ON public.orders;
+
+/* Create a policy that allows anonymous users to INSERT rows */
+CREATE POLICY "Allow anonymous insert for orders"
+ON public.orders
+FOR INSERT
+TO anon
+WITH CHECK (auth.role() = 'anon');
+
+/* Create a policy that allows anonymous users to SELECT rows */
+CREATE POLICY "Allow anonymous select for orders"
+ON public.orders
+FOR SELECT
+TO anon
+USING ((user_id = auth.uid()) OR (auth.role() = 'anon'));
+
+
+/* 1️⃣ Enable Row‑Level Security */
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+/* 2️⃣ Admin‑wide policy – full access for users with the 'admin' role */
+CREATE POLICY "orders_admin_all"
+  ON public.orders
+  FOR ALL
+  TO authenticated, anon
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM user_roles
+      WHERE user_roles.id = (SELECT auth.uid())
+        AND user_roles.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM user_roles
+      WHERE user_roles.id = (SELECT auth.uid())
+        AND user_roles.role = 'admin'
+    )
+  );
+
+/* 3️⃣ Delete – owner or admin */
+CREATE POLICY "user_orders_delete_policy"
+  ON public.orders
+  FOR DELETE
+  TO authenticated, anon
+  USING (
+    (SELECT auth.uid()) = user_id
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles
+      WHERE user_roles.id = user_id
+        AND user_roles.role = 'admin'
+    )
+  );
+
+/* 4️⃣ Insert – owner or admin */
+CREATE POLICY "user_orders_insert_policy"
+  ON public.orders
+  FOR INSERT
+  TO authenticated, anon
+  WITH CHECK (
+    (SELECT auth.uid()) = user_id
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles
+      WHERE user_roles.id = user_id
+        AND user_roles.role = 'admin'
+    )
+  );
+
+/* 5️⃣ Select – owner or admin */
+CREATE POLICY "user_orders_select_policy"
+  ON public.orders
+  FOR SELECT
+  TO authenticated, anon
+  USING (
+    (SELECT auth.uid()) = user_id
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles
+      WHERE user_roles.id = user_id
+        AND user_roles.role = 'admin'
+    )
+  );
+
+/* 6️⃣ Update – owner or admin (both USING and WITH CHECK) */
+CREATE POLICY "user_orders_update_policy"
+  ON public.orders
+  FOR UPDATE
+  TO authenticated, anon
+  USING (
+    (SELECT auth.uid()) = user_id
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles
+      WHERE user_roles.id = user_id
+        AND user_roles.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    (SELECT auth.uid()) = user_id
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles
+      WHERE user_roles.id = user_id
+        AND user_roles.role = 'admin'
+    )
+  );
+
+-------------------------------------reviews-------------------
+-- Create policy for users to delete their own reviews
+CREATE POLICY "reviews_delete_own"
+ON "public"."reviews"
+FOR DELETE
+TO authenticated
+USING (
+  (auth.uid() = user_id)
+);
+
+-- Create policy for users to insert their own reviews
+CREATE POLICY "reviews_insert_own"
+ON "public"."reviews"
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  (auth.uid() = user_id)
+);
+
+-- Create policy for users to select their own reviews
+CREATE POLICY "reviews_select_own"
+ON "public"."reviews"
+FOR SELECT
+TO authenticated
+USING (
+  (auth.uid() = user_id)
+);
+
+-- Create policy for users to update their own reviews
+CREATE POLICY "reviews_update_own"
+ON "public"."reviews"
+FOR UPDATE
+TO authenticated
+USING (
+  (auth.uid() = user_id)
+)
+WITH CHECK (
+  (auth.uid() = user_id)
+);
+
+
+-------------------------------------------------------------------------------------------------------------------
+
+/* ========================================================= */
+/* 1️⃣  Cart Items – RLS configuration                        */
+/* ========================================================= */
+
+/* Enable row‑level security */
+ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
+
+/* Remove any old policies that might interfere */
+DROP POLICY IF EXISTS "cart_items_select_own" ON public.cart_items;
+DROP POLICY IF EXISTS "cart_items_insert_own" ON public.cart_items;
+DROP POLICY IF EXISTS "cart_items_update_own" ON public.cart_items;
+DROP POLICY IF EXISTS "cart_items_delete_own" ON public.cart_items;
+
+/* SELECT – users can read only their own cart items */
+CREATE POLICY "cart_items_select_own"
+ON public.cart_items
+FOR SELECT
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+/* INSERT – users can insert rows that belong to them */
+CREATE POLICY "cart_items_insert_own"
+ON public.cart_items
+FOR INSERT
+TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+/* UPDATE – users can update only their own rows */
+CREATE POLICY "cart_items_update_own"
+ON public.cart_items
+FOR UPDATE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+/* DELETE – users can delete only their own rows */
+CREATE POLICY "cart_items_delete_own"
+ON public.cart_items
+FOR DELETE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+
+/* ========================================================= */
+/* 2️⃣  Orders – RLS configuration                             */
+/* ========================================================= */
+
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "orders_select_own" ON public.orders;
+DROP POLICY IF EXISTS "orders_insert_own" ON public.orders;
+DROP POLICY IF EXISTS "orders_update_own" ON public.orders;
+DROP POLICY IF EXISTS "orders_delete_own" ON public.orders;
+
+/* SELECT – users see only their own orders */
+CREATE POLICY "orders_select_own"
+ON public.orders
+FOR SELECT
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+/* INSERT – users can create orders only for themselves */
+CREATE POLICY "orders_insert_own"
+ON public.orders
+FOR INSERT
+TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+/* UPDATE – users can modify only their own orders */
+CREATE POLICY "orders_update_own"
+ON public.orders
+FOR UPDATE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+/* DELETE – users can delete only their own orders */
+CREATE POLICY "orders_delete_own"
+ON public.orders
+FOR DELETE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+
+/* ========================================================= */
+/* 3️⃣  Order Items – RLS configuration                        */
+/* ========================================================= */
+
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "order_items_select_own" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_insert_own" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_update_own" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_delete_own" ON public.order_items;
+
+/* SELECT – a user can read items that belong to their orders */
+CREATE POLICY "order_items_select_own"
+ON public.order_items
+FOR SELECT
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1
+        FROM public.orders o
+        WHERE o.id = order_items.order_id
+          AND o.user_id = (SELECT auth.uid())
+    )
+);
+
+/* INSERT – a user can add items only to their own orders */
+CREATE POLICY "order_items_insert_own"
+ON public.order_items
+FOR INSERT
+TO authenticated
+WITH CHECK (
+    EXISTS (
+        SELECT 1
+        FROM public.orders o
+        WHERE o.id = order_items.order_id
+          AND o.user_id = (SELECT auth.uid())
+    )
+);
+
+/* UPDATE – a user can modify items that belong to their orders */
+CREATE POLICY "order_items_update_own"
+ON public.order_items
+FOR UPDATE
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1
+        FROM public.orders o
+        WHERE o.id = order_items.order_id
+          AND o.user_id = (SELECT auth.uid())
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1
+        FROM public.orders o
+        WHERE o.id = order_items.order_id
+          AND o.user_id = (SELECT auth.uid())
+    )
+);
+
+/* DELETE – a user can delete items that belong to their orders */
+CREATE POLICY "order_items_delete_own"
+ON public.order_items
+FOR DELETE
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1
+        FROM public.orders o
+        WHERE o.id = order_items.order_id
+          AND o.user_id = (SELECT auth.uid())
+    )
+);

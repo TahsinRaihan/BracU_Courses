@@ -1,0 +1,1 @@
+export type Review = { id: number; created_at: string; user_id: string; menu_item_id: number; rating: number; comment: string; };

@@ -1,0 +1,139 @@
+unieats/frontend/
+└── src/
+    ├── app.html
+    ├── app.css
+    ├── app.d.ts
+    │
+    ├── lib/
+    │   ├── components/                     # Reusable UI (pure View)
+    │   │   ├── menu/
+    │   │   │   ├── MenuGrid.svelte
+    │   │   │   ├── CategoryTabs.svelte
+    │   │   │   └── SearchBar.svelte
+    │   │   ├── item/
+    │   │   │   ├── ItemCard.svelte
+    │   │   │   └── ReviewList.svelte
+    │   │   ├── orders/
+    │   │   │   └── OrderRow.svelte
+    │   │   ├── favorites/
+    │   │   │   └── FavoriteButton.svelte
+    │   │   ├── feedback/
+    │   │   │   └── FeedbackForm.svelte
+    │   │   ├── suggestions/
+    │   │   │   └── SuggestionForm.svelte
+    │   │   ├── specials/
+    │   │   │   └── SpecialsStrip.svelte
+    │   │   └── ui/                         # Buttons, cards, etc.
+    │   │       ├── Button.svelte
+    │   │       └── Card.svelte
+    │   │
+    │   ├── controllers/                    # C: Orchestrate requests for Views
+    │   │   ├── menuController.ts           # Loads daily/weekly menu, filters
+    │   │   ├── itemController.ts           # Loads item + reviews
+    │   │   ├── orderController.ts          # Pre-order, cancel, history
+    │   │   ├── favoritesController.ts      # Toggle/list favorites
+    │   │   ├── feedbackController.ts       # Submit feedback/complaints
+    │   │   ├── suggestionsController.ts    # Submit new item/dietary suggestions
+    │   │   ├── inventoryController.ts      # Out-of-stock realtime feed
+    │   │   ├── specialsController.ts       # Today’s specials
+    │   │   └── index.ts
+    │   │
+    │   ├── services/                       # Business logic (compose repos)
+    │   │   ├── menuService.ts              # Grouping, category filters, date range
+    │   │   ├── itemService.ts              # Item detail + review aggregation
+    │   │   ├── orderService.ts             # Validate cancel window, schedule pickup
+    │   │   ├── favoritesService.ts         # Favorite add/remove/list
+    │   │   ├── feedbackService.ts          # Feedback validation/transform
+    │   │   ├── suggestionsService.ts       # Suggestion validation/rules
+    │   │   ├── inventoryService.ts         # Map realtime stock -> UI state
+    │   │   ├── specialsService.ts          # Select & format today’s 2–3 specials
+    │   │   └── index.ts
+    │   │
+    │   ├── repositories/                   # Data access only (Supabase)
+    │   │   ├── supabaseClient.ts           # Browser client
+    │   │   ├── menuRepository.ts           # categories, items, date-ranged menus
+    │   │   ├── itemRepository.ts           # item by id, reviews by item, add review
+    │   │   ├── orderRepository.ts          # create/cancel preorder, list history
+    │   │   ├── favoritesRepository.ts      # toggle/list favorites
+    │   │   ├── feedbackRepository.ts       # insert feedback/complaints
+    │   │   ├── suggestionsRepository.ts    # insert suggestions
+    │   │   ├── inventoryRepository.ts      # stock table + realtime channel
+    │   │   ├── specialsRepository.ts       # fetch “today’s specials”
+    │   │   └── index.ts
+    │   │
+    │   ├── models/                         # M: Domain types only
+    │   │   ├── Category.ts
+    │   │   ├── MenuItem.ts
+    │   │   ├── Order.ts
+    │   │   ├── Review.ts
+    │   │   ├── Feedback.ts
+    │   │   ├── Favorite.ts
+    │   │   ├── Suggestion.ts
+    │   │   ├── Inventory.ts
+    │   │   ├── Special.ts
+    │   │   └── index.ts
+    │   │
+    │   ├── server/
+    │   │   └── supabaseClient.ts           # Server-only client (for +page.server.ts)
+    │   │
+    │   ├── stores/                         # Svelte stores for UI state
+    │   │   ├── cart.ts                     # local cart/preorder draft if needed
+    │   │   ├── favorites.ts
+    │   │   ├── inventory.ts                # subscribes to realtime stock feed
+    │   │   └── specials.ts
+    │   │
+    │   ├── utils/
+    │   │   ├── date.ts                     # schedule/cancel window helpers
+    │   │   ├── money.ts
+    │   │   └── validation.ts
+    │   │
+    │   ├── supabase.js                     # (optional) shim: re-export browser client
+    │   └── index.ts                        # barrels: controllers/services/repos/models
+    │
+    ├── routes/                             # V: Pages (keep your current pages)
+    │   ├── +layout.svelte
+    │   ├── +layout.ts                      # optional: load user/profile
+    │   │
+    │   ├── menu/
+    │   │   ├── +page.svelte                # View Daily/Weekly, filter by category
+    │   │   └── +page.ts                    # calls menuController.loadMenuPage()
+    │   │
+    │   ├── item/
+    │   │   └── [id]/
+    │   │       ├── +page.svelte            # Item details, reviews, favorite button
+    │   │       └── +page.ts                # itemController.loadItemPage(id)
+    │   │
+    │   ├── cart/
+    │   │   └── +page.svelte                # Pre-order UI (schedule pickup time)
+    │   │
+    │   ├── history/
+    │   │   ├── +page.svelte                # View past orders + statuses
+    │   │   └── +page.ts                    # orderController.loadHistoryPage()
+    │   │
+    │   ├── favorites/
+    │   │   ├── +page.svelte
+    │   │   └── +page.ts                    # favoritesController.loadFavorites()
+    │   │
+    │   ├── feedback/
+    │   │   └── +page.svelte                # Submit feedback/complaints
+    │   │
+    │   ├── suggestions/
+    │   │   └── +page.svelte                # Suggest new items/dietary options
+    │   │
+    │   ├── specials/
+    │   │   ├── +page.svelte                # Today’s specials (2–3 highlights)
+    │   │   └── +page.ts                    # specialsController.loadToday()
+    │   │
+    │   ├── login/
+    │   │   └── +page.svelte
+    │   └── signup/
+    │       └── +page.svelte
+    │
+    ├── static/
+    │   └── images/
+    │
+    ├── svelte.config.js
+    ├── tsconfig.json
+    ├── vite.config.ts
+    ├── package.json
+    └── README.md

@@ -1,0 +1,147 @@
+<script>
+  import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabase';
+
+  let categories = [];
+  let items = [];
+  let grouped = {};
+  let search = '';
+  let filteredItems = [];
+
+  // Combined suggestions list (category names + item names)
+  $: suggestions = [
+    ...categories.map(c => c.name),
+    ...items.map(i => i.name)
+  ];
+
+  // Fetch data once on mount
+  onMount(async () => {
+    let { data: cats } = await supabase
+      .from('categories')
+      .select('*')
+      .order('id');
+    categories = cats;
+
+    let { data: all } = await supabase
+      .from('menu_items')
+      .select('*')
+      .eq('is_available', true)
+      .order('name');
+    items = all;
+
+    applyFilter();
+  });
+
+  // Group filteredItems by category_id
+  function group() {
+    grouped = {};
+    for (const c of categories) grouped[c.id] = [];
+    for (const i of filteredItems) {
+      if (grouped[i.category_id]) {
+        grouped[i.category_id].push(i);
+      }
+    }
+  }
+
+  // Filter items by search term (case-insensitive substring match)
+  function applyFilter() {
+    const q = search.trim().toLowerCase();
+    filteredItems = items.filter(i =>
+      i.name.toLowerCase().includes(q) ||
+      categories.find(c => c.id === i.category_id)?.name.toLowerCase().includes(q)
+    );
+    group();
+  }
+
+  // Scroll smoothly to a category panel
+  function scrollTo(catId) {
+    document.getElementById(`cat-${catId}`)?.scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+
+<style>
+  /* Enable vertical scroll snapping */
+  .snap-container { scroll-snap-type: y mandatory; }
+  .snap-section  { scroll-snap-align: start; }
+</style>
+
+<div class="h-full overflow-y-auto snap-container">
+  <!-- Hero Banner -->
+  <div
+    class="h-64 bg-cover bg-center relative"
+    style="background-image:url('https://source.unsplash.com/1200x400/?bangladeshi%20canteen');"
+  >
+    <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+      <h1 class="text-5xl text-white font-black">Our Menu</h1>
+    </div>
+  </div>
+
+  <!-- Sticky Search + Suggestions -->
+  <div class="sticky top-0 bg-white/90 backdrop-blur p-4 z-20 shadow">
+    <input
+      type="text"
+      bind:value={search}
+      placeholder="🔍 Search dishes..."
+      on:input={applyFilter}
+      list="search-suggestions"
+      class="w-full p-3 border border-[#e5c8a8] rounded-lg text-lg"
+    />
+    <datalist id="search-suggestions">
+      {#each suggestions as s}
+        <option value={s} />
+      {/each}
+    </datalist>
+  </div>
+
+  <!-- Sticky Category Pills -->
+  <div class="sticky top-20 bg-white/90 backdrop-blur py-2 z-10 overflow-x-auto">
+    <div class="flex gap-2 px-4">
+      <button
+        on:click={() => { search=''; applyFilter(); }}
+        class="whitespace-nowrap px-4 py-2 border border-[#e5c8a8] rounded-full hover:bg-[#e5c8a8]/20"
+      >All</button>
+      {#each categories as c}
+        {#if grouped[c.id]?.length}
+          <button
+            on:click={() => scrollTo(c.id)}
+            class="whitespace-nowrap px-4 py-2 border border-[#e5c8a8] rounded-full hover:bg-[#e5c8a8]/20"
+          >{c.name}</button>
+        {/if}
+      {/each}
+    </div>
+  </div>
+
+  <!-- Category Panels -->
+  {#each categories as c}
+    {#if grouped[c.id]?.length}
+      <section
+        id={"cat-" + c.id}
+        class="snap-section min-h-screen px-6 py-8 bg-white/90 mx-4 rounded-lg shadow-lg mb-8"
+      >
+        <h2 class="text-3xl font-bold mb-4">{c.name}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {#each grouped[c.id] as item}
+            <div class="border border-[#e5c8a8] rounded-lg overflow-hidden shadow hover:shadow-md transition bg-white">
+              <img
+                src={item.image_url}
+                alt={item.name}
+                on:error="{(e) => e.target.src = '/no-image.png'}"
+                class="w-full h-48 object-cover"
+              />
+              <div class="p-4">
+                <div class="flex justify-between items-center mb-2">
+                  <h3 class="font-semibold">{item.name}</h3>
+                  <span class="text-lg">৳{item.price}</span>
+                </div>
+                <a
+                  href={`/item/${item.id}`}
+                  class="text-blue-600 hover:underline"
+                >Details →</a>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </section>
+    {/if}
+  {/each}
+</div>

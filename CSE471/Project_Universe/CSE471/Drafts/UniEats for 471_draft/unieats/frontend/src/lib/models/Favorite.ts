@@ -1,0 +1,1 @@
+export type Favorite = { id: number; user_id: string; menu_item_id: number; };

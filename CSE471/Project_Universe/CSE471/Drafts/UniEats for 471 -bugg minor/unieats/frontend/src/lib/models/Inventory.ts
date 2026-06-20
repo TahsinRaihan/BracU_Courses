@@ -1,0 +1,1 @@
+export type Inventory = { item_id: number; quantity: number; last_updated: string; };

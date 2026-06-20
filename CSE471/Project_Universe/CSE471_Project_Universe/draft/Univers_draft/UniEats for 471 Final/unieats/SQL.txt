@@ -1,0 +1,87 @@
+
+
+CREATE TABLE public.cart_items (
+  user_id uuid NOT NULL,
+  menu_item_id integer NOT NULL,
+  quantity integer NOT NULL DEFAULT 1,
+  inserted_at timestamp with time zone DEFAULT now(),
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  CONSTRAINT cart_items_pkey PRIMARY KEY (id),
+  CONSTRAINT cart_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT cart_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+);
+CREATE TABLE public.categories (
+  name text NOT NULL,
+  id integer NOT NULL DEFAULT nextval('categories_id_seq'::regclass),
+  CONSTRAINT categories_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.favorites (
+  user_id uuid NOT NULL,
+  menu_item_id integer NOT NULL,
+  CONSTRAINT favorites_pkey PRIMARY KEY (user_id, menu_item_id),
+  CONSTRAINT favorites_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT favorites_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+);
+CREATE TABLE public.feedback (
+  user_id uuid,
+  content text NOT NULL,
+  created_at timestamp without time zone DEFAULT now(),
+  id bigint NOT NULL DEFAULT nextval('feedback_id_seq'::regclass),
+  CONSTRAINT feedback_pkey PRIMARY KEY (id),
+  CONSTRAINT feedback_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.menu_items (
+  name text NOT NULL,
+  description text,
+  price numeric NOT NULL,
+  category_id integer,
+  image_url text,
+  is_special boolean DEFAULT false,
+  is_available boolean DEFAULT true,
+  id integer NOT NULL DEFAULT nextval('menu_items_id_seq'::regclass),
+  tag text,
+  CONSTRAINT menu_items_pkey PRIMARY KEY (id),
+  CONSTRAINT menu_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+);
+CREATE TABLE public.order_items (
+  order_id bigint NOT NULL,
+  menu_item_id integer NOT NULL,
+  quantity integer DEFAULT 1,
+  price_at_order numeric NOT NULL DEFAULT 0.00,
+  CONSTRAINT order_items_pkey PRIMARY KEY (order_id, menu_item_id),
+  CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
+  CONSTRAINT order_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+);
+CREATE TABLE public.orders (
+  user_id uuid,
+  scheduled_at timestamp without time zone NOT NULL,
+  status text DEFAULT 'pending'::text,
+  created_at timestamp without time zone DEFAULT now(),
+  id bigint NOT NULL DEFAULT nextval('orders_id_seq'::regclass),
+  menu_item_id bigint NOT NULL,
+  payment_method text,
+  transaction_id text,
+  CONSTRAINT orders_pkey PRIMARY KEY (id),
+  CONSTRAINT orders_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
+  CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.reviews (
+  user_id uuid,
+  menu_item_id integer,
+  rating integer CHECK (rating >= 1 AND rating <= 5),
+  comment text,
+  created_at timestamp without time zone DEFAULT now(),
+  id bigint NOT NULL DEFAULT nextval('reviews_id_seq'::regclass),
+  CONSTRAINT reviews_pkey PRIMARY KEY (id),
+  CONSTRAINT reviews_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT reviews_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+);
+CREATE TABLE public.suggestions (
+  user_id uuid,
+  title text NOT NULL,
+  description text,
+  id bigint NOT NULL DEFAULT nextval('suggestions_id_seq'::regclass),
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT suggestions_pkey PRIMARY KEY (id),
+  CONSTRAINT suggestions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);

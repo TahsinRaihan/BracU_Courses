@@ -1,0 +1,1 @@
+export type Order = { id: number; created_at: string; scheduled_at: string; status: 'pending' | 'paid' | 'cancelled'; user_id: string; order_items: { quantity: number; menu_items: { name: string; price: number; }; }[]; };

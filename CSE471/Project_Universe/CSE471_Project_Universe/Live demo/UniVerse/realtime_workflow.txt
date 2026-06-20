@@ -1,0 +1,139 @@
+REALTIME NOTIFICATION & MARQUEE WORKFLOW
+========================================
+
+1. NOTIFICATIONS WORKFLOW
+-------------------------
+Database Change → Supabase Realtime → Frontend Update
+
+Files involved:
+- Database: notifications table
+- Frontend: src/routes/myspace/notifications/+page.svelte
+- Realtime: Supabase channel listens for INSERT/UPDATE/DELETE on notifications table
+
+Flow:
+1. Server creates notification in database
+2. Supabase Realtime detects change
+3. Frontend receives realtime event
+4. UI updates automatically (add/update/remove notification)
+
+STEP-BY-STEP FILE RESPONSIBILITIES:
+1. Event Reminder Creation:
+   - supabase/functions/process-reminders/index.ts (Edge Function)
+   - Creates notification in notifications table
+   - Runs automatically via cron job
+
+2. Banner Approval Notification:
+   - src/lib/services/banner.service.ts (approveBannerRequest method)
+   - src/lib/controllers/notification.controller.ts
+   - Creates notification when admin approves banner
+
+3. Realtime Subscription:
+   - src/routes/myspace/notifications/+page.svelte (onMount effect)
+   - Sets up Supabase Realtime channel
+   - Listens for INSERT/UPDATE/DELETE on notifications table
+
+4. UI Updates:
+   - src/routes/myspace/notifications/+page.svelte (realtime handlers)
+   - Updates notifications array when realtime events received
+   - src/routes/myspace/+layout.svelte (notification counter)
+   - Shows unread count in navigation
+
+2. MARQUEE WORKFLOW
+-------------------
+Database Change → Supabase Realtime → Frontend Update
+
+Files involved:
+- Database: banner_requests table
+- Frontend: src/lib/components/banner-marquee.svelte
+- Realtime: Supabase channel listens for changes on banner_requests table
+
+Flow:
+1. Admin approves/rejects banner request
+2. Supabase Realtime detects change
+3. Frontend receives realtime event
+4. Marquee refreshes and shows/hides banners
+
+STEP-BY-STEP FILE RESPONSIBILITIES:
+1. Banner Request Creation:
+   - src/routes/myspace/banner-request/+page.svelte (form)
+   - src/routes/myspace/banner-request/+page.server.ts (form action)
+   - src/lib/controllers/banner.controller.ts
+   - src/lib/services/banner.service.ts
+   - src/lib/repositories/banner.repository.ts
+   - Creates row in banner_requests table
+
+2. Banner Approval/Rejection:
+   - src/routes/admin/banner-requests/+page.svelte (admin panel)
+   - src/routes/admin/banner-requests/+page.server.ts (admin actions)
+   - src/lib/services/banner.service.ts (approveBannerRequest/rejectBannerRequest)
+   - Updates status, start_date, end_date in banner_requests table
+
+3. Active Banner Fetching:
+   - src/lib/repositories/banner.repository.ts (getActiveBanners)
+   - Queries banner_requests where status='approved' AND current time between start_date and end_date
+
+4. Marquee Display:
+   - src/lib/components/banner-marquee.svelte (onMount effect)
+   - Sets up Supabase Realtime channel
+   - Listens for changes on banner_requests table
+   - Refreshes active banners when realtime events received
+   - Displays banners using @arisbh/marqueeck component
+
+5. Banner Expiration:
+   - supabase/functions/cleanup-expired-banners/index.ts (Edge Function)
+   - Deletes expired banners from banner_requests table
+   - Runs automatically via cron job
+
+3. FRONTEND REALTIME HANDLING
+-----------------------------
+These files/functions handle immediate UI updates when database changes:
+
+NOTIFICATIONS REALTIME:
+- File: src/routes/myspace/notifications/+page.svelte
+- Function: onMount effect (lines ~19-153)
+- What it does:
+  * Sets up Supabase Realtime channel
+  * Listens for INSERT/UPDATE/DELETE on notifications table
+  * Updates notifications array immediately when changes detected
+  * Handles realtime events: adds new notifications, updates existing ones, removes deleted ones
+
+NOTIFICATION COUNTER REALTIME:
+- File: src/routes/myspace/+layout.svelte
+- Function: onMount effect with Supabase Realtime
+- What it does:
+  * Listens for changes on notifications table
+  * Updates unread count in navigation menu
+  * Shows "Notifications (X)" when there are unread notifications
+
+MARQUEE REALTIME:
+- File: src/lib/components/banner-marquee.svelte
+- Function: onMount effect (lines ~44-58)
+- What it does:
+  * Sets up Supabase Realtime channel
+  * Listens for changes on banner_requests table
+  * Calls fetchActiveBanners() when changes detected
+  * Refreshes marquee display immediately
+  * Also has 30-second polling as backup
+
+4. BACKGROUND TASKS
+-------------------
+Edge Functions (run automatically):
+- process-reminders: Creates event notifications
+- cleanup-expired-banners: Removes expired banners
+
+5. KEY FILES
+------------
+Frontend:
+- src/routes/myspace/notifications/+page.svelte (notifications page)
+- src/lib/components/banner-marquee.svelte (marquee component)
+- src/routes/myspace/+layout.svelte (notification counter)
+
+Backend:
+- src/routes/api/process-reminders/+server.ts (event reminders)
+- supabase/functions/process-reminders/index.ts (Edge Function)
+- src/lib/services/banner.service.ts (banner logic)
+
+Database:
+- notifications table
+- banner_requests table
+- event_reminders table

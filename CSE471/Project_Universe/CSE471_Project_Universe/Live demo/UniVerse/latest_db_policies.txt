@@ -1,0 +1,137 @@
+event_reminders -> Policies 
+
+DELETE :
+
+
+event_reminders_delete_own
+Applied to: public role
+
+INSERT :
+
+
+event_reminders_insert_own
+Applied to: public role
+
+SELECT :
+
+
+event_reminders_select_own
+Applied to: public role
+
+UPDATE :
+
+
+event_reminders_update_own
+Applied to: public role
+
+
+
+
+events -> Policies
+
+
+ALL :
+
+
+events_admin_all
+Applied to: public role
+
+INSERT :
+
+
+events_insert_own
+Applied to: public role
+
+SELECT :
+
+
+events_select_own
+Applied to: public role
+
+SELECT :
+
+
+events_select_public
+Applied to: public role
+
+UPDATE :
+
+
+events_update_own
+Applied to: public role
+
+
+
+
+notifications -> Policies
+
+
+ALL :
+
+
+notifications_admin_all
+Applied to: public role
+
+DELETE :
+
+
+notifications_delete_own
+Applied to: public role
+
+INSERT :
+
+
+notifications_insert_own
+Applied to: public role
+
+SELECT :
+
+
+notifications_select_own
+Applied to: public role
+
+UPDATE :
+
+
+notifications_update_own
+Applied to: public role
+
+
+
+
+profiles -> Policies
+
+
+INSERT :
+
+
+profiles_insert_own
+Applied to: public role
+
+SELECT :
+
+
+profiles_select_own
+Applied to: public role
+
+UPDATE :
+
+
+profiles_update_own
+Applied to: public role
+
+
+user_roles -> Policies
+
+
+INSERT :
+
+
+user_roles_insert_own
+Applied to: public role
+
+SELECT :
+
+
+user_roles_select_own
+Applied to: public role
