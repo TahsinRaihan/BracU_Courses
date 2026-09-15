@@ -1,0 +1,117 @@
+===================================================================
+  AUTONOMOUS GARBAGE-COLLECTING ROBOT (CAR STAGE) - WIRING GUIDE
+  Phase 1 build: movement + obstacle avoidance + garbage DETECTION only
+  (claw + weight scale wired in Phase 2 - pins already reserved below)
+===================================================================
+
+--------------------------------------------------------
+1. FULL PIN TABLE (Arduino Uno R3)
+--------------------------------------------------------
+ARDUINO PIN     CONNECTS TO                         NOTES
+-----------     -------------------------------      -----------------------------
+5V              L298N "5V" pin (logic supply)        Only if L298N 5V-EN jumper is ON
+5V              HC-SR04 VCC                          
+5V              IR Sensor LEFT  VCC
+5V              IR Sensor RIGHT VCC
+5V              Buzzer (+) leg
+GND             L298N GND                            Common ground - see section 3
+GND             HC-SR04 GND
+GND             IR Sensor LEFT  GND
+GND             IR Sensor RIGHT GND
+GND             Buzzer (-) leg
+D2              L298N IN4                             Right motor direction bit B
+D4              L298N IN3                             Right motor direction bit A
+D5  (PWM)       L298N ENA                             Left motor speed (PWM)
+D6  (PWM)       L298N ENB                             Right motor speed (PWM)
+D7              L298N IN2                             Left motor direction bit B
+D8              L298N IN1                             Left motor direction bit A
+D9              HC-SR04 TRIG
+D10             HC-SR04 ECHO
+D11             Buzzer signal (+)                     (same as 5V leg above; single-pin
+                                                        active buzzers just need +/-)
+A0              IR Sensor LEFT  OUT (digital)
+A1              IR Sensor RIGHT OUT (digital)
+-----------     -------------------------------      -----------------------------
+D3              RESERVED for Phase-2 arm servo (signal)
+D12             RESERVED for Phase-2 HX711 DT
+D13             RESERVED for Phase-2 HX711 SCK
+-----------     -------------------------------      -----------------------------
+
+--------------------------------------------------------
+2. L298N -> MOTORS (4WD chassis, 4 DC gear motors)
+--------------------------------------------------------
+Your 4WD kit has 4 motors but the L298N only has 2 independent channels,
+so each SIDE's two motors are wired IN PARALLEL onto one channel:
+
+   L298N OUT1  ---> Front-Left motor  (+)
+   L298N OUT1  ---> Rear-Left motor   (+)   (both LEFT motors tied together)
+   L298N OUT2  ---> Front-Left motor  (-)
+   L298N OUT2  ---> Rear-Left motor   (-)
+
+   L298N OUT3  ---> Front-Right motor (+)
+   L298N OUT3  ---> Rear-Right motor  (+)  (both RIGHT motors tied together)
+   L298N OUT4  ---> Front-Right motor (-)
+   L298N OUT4  ---> Rear-Right motor  (-)
+
+If a wheel spins the WRONG way in the calibration test, don't rewire -
+just swap that channel's two OUT wires (e.g. swap OUT1/OUT2), or flip the
+HIGH/LOW logic for that side in the code (explained in sensor_calibration.ino).
+
+--------------------------------------------------------
+3. POWER WIRING (IMPORTANT - read before powering on)
+--------------------------------------------------------
+You have: 2x 18650 (3.7V each) in a 2S holder = ~7.4V pack, plus a charger.
+
+   Battery (+)  ---> L298N "12V" input terminal
+   Battery (-)  ---> L298N GND
+   L298N GND    ---> Arduino GND            <-- MUST be common, or nothing works
+   Battery (+)  ---> Arduino "Vin" pin       <-- powers the Arduino from the same pack
+                                                 (do NOT also power Arduino via USB
+                                                 while the battery is connected)
+
+   L298N 5V-EN jumper: LEAVE THE JUMPER ON. At 7.4V input the onboard 5V
+   regulator on the L298N will supply ~5V logic power to itself and can
+   also power the Arduino's 5V rail for the sensors. If you ever see
+   flaky/reset behavior under motor load, remove the jumper and instead
+   run a wire from Arduino 5V pin to L298N's 5V pin (separates logic
+   power from motor noise) - the pin table above already assumes you may
+   need to do this.
+
+   All GNDs (Arduino, L298N, both IR sensors, HC-SR04, buzzer) must tie
+   back to the SAME ground point. This is the #1 cause of "nothing works."
+
+--------------------------------------------------------
+4. ASCII BLOCK DIAGRAM
+--------------------------------------------------------
+
+        [ 2x 18650 in holder, ~7.4V ]
+                    |
+        +-----------+-----------+
+        |                       |
+     (12V,GND)               (Vin,GND)
+        |                       |
+   +----v-----+           +-----v------+
+   |  L298N   |<--D2,D4-->|            |
+   | Motor    |<--D5,D6-->|  ARDUINO   |
+   | Driver   |<--D7,D8-->|   UNO R3   |
+   +----+-----+           |            |
+        |                 +--+--+--+---+
+   OUT1/2   OUT3/4           |  |  |
+     |         |             |  |  +--D11-- BUZZER (+/-)
+   LEFT      RIGHT           |  |
+   motors    motors          |  +-----D9,D10-- HC-SR04 (TRIG,ECHO)
+  (F+R, //) (F+R, //)        |
+                              +--A0,A1-- IR SENSOR L / IR SENSOR R
+                                          (mounted low, ~3-5cm off ground,
+                                           side by side at the front, just
+                                           behind/below the HC-SR04)
+
+--------------------------------------------------------
+5. SENSOR MOUNTING HEIGHTS (matches your project doc)
+--------------------------------------------------------
+   HC-SR04         : ~15-20 cm off the ground, facing forward, centered
+   IR sensor L / R : ~3-5 cm off the ground, facing forward, spaced apart
+                      so the two together "sweep" a wider strip of floor
+                      than a single sensor would
+
+===================================================================
